@@ -33,6 +33,14 @@ jobs:
         env: {GH_TOKEN: "${{ github.token }}"}
         run: |
           git clone -q --depth 1 https://github.com/ggml-org/llama.cpp /mnt/w/lc
+          python3 - <<'PYEOF'
+          import re
+          p='/mnt/w/lc/conversion/base.py'; s=open(p).read()
+          anchor='        if res is None:\n            logger.warning'
+          assert anchor in s, 'anchor missing'
+          s=s.replace(anchor,'        if res is None and chkhsh == \"89377a9f52591931c0fe65a2096be15bb578e5f211dc1dc2298a92dbede010bb\":\n            res = \"tiny_aya\"\n'+anchor,1)
+          open(p,'w').write(s); print('patched tiny_aya hash')
+          PYEOF
           PYTHONPATH=/mnt/w/lc/gguf-py python /mnt/w/lc/convert_hf_to_gguf.py /mnt/w/merged --outfile /mnt/w/f16.gguf --outtype f16
           rm -rf /mnt/w/merged
           REL=$(curl -s -H "Authorization: Bearer $GH_TOKEN" "https://api.github.com/repos/ggml-org/llama.cpp/releases?per_page=5" | python3 -c 'import json,sys,re;rs=json.load(sys.stdin);print(next(a["browser_download_url"] for d in rs for a in d["assets"] if re.fullmatch(r"llama-b[0-9]+-bin-ubuntu-x64\.tar\.gz",a["name"])))')
