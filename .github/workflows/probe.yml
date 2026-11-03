@@ -1,0 +1,19 @@
+name: probe
+on: workflow_dispatch
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: nproc; free -g; df -h /
+      - run: pip install -q torch --index-url https://download.pytorch.org/whl/cpu && pip install -q -U transformers peft accelerate datasets trl
+      - run: python scripts/probe.py
+      - name: aligntune api
+        continue-on-error: true
+        run: pip install -q aligntune && python -c "import aligntune,pkgutil;print(aligntune.__version__ if hasattr(aligntune,'__version__') else '');print([m.name for m in pkgutil.walk_packages(aligntune.__path__,'aligntune.')][:80])"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: probe, path: probe.json, if-no-files-found: ignore}
