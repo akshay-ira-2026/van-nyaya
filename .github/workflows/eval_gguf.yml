@@ -1,0 +1,38 @@
+name: eval_gguf
+on:
+  workflow_dispatch:
+    inputs:
+      tag: {type: string, default: base}
+      gguf_repo: {type: string, default: CohereLabs/tiny-aya-global-GGUF}
+      pattern: {type: string, default: q4_k_m}
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix: {shard: [0,1,2,3,4,5,6,7]}
+    steps:
+      - uses: actions/checkout@v4
+      - name: llama.cpp + model
+        env: {GH_TOKEN: "${{ github.token }}", GGUF_REPO: "${{ inputs.gguf_repo }}", PAT: "${{ inputs.pattern }}"}
+        run: |
+          REL=$(curl -s -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/repos/ggml-org/llama.cpp/releases/latest | python3 -c "import json,sys;d=json.load(sys.stdin);print(next(a['browser_download_url'] for a in d['assets'] if 'bin-ubuntu-x64' in a['name'] and a['name'].endswith(('.zip','.tar.gz'))))")
+          echo "$REL"; mkdir lcpp; curl -sL -o lcpp/pkg "$REL"
+          case "$REL" in *.zip) unzip -q lcpp/pkg -d lcpp;; *) tar xzf lcpp/pkg -C lcpp;; esac
+          S=$(find lcpp -name llama-server -type f | head -1); chmod +x "$S"; echo "SRV=$S" >> $GITHUB_ENV; echo "LD_LIBRARY_PATH=$(dirname $S)" >> $GITHUB_ENV
+          F=$(curl -s https://huggingface.co/api/models/$GGUF_REPO | python3 -c "import json,sys,os;fs=[s['rfilename'] for s in json.load(sys.stdin)['siblings']];print(next(f for f in fs if os.environ['PAT'].lower() in f.lower() and f.endswith('.gguf')))")
+          echo "$F"; curl -sL -o model.gguf "https://huggingface.co/$GGUF_REPO/resolve/main/$F"; ls -la model.gguf
+      - name: generate
+        timeout-minutes: 100
+        continue-on-error: true
+        env: {SHARDS: "8", SHARD: "${{ matrix.shard }}", TAG: "${{ inputs.tag }}"}
+        run: |
+          nohup "$SRV" -m model.gguf -c 4096 -t 4 --port 8080 --jinja > server.log 2>&1 &
+          for i in $(seq 1 60); do curl -s localhost:8080/health | grep -q ok && break; sleep 5; done
+          tail -5 server.log; python3 scripts/eval_gguf.py
+      - run: tail -30 server.log || true
+        if: always()
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: "gen-${{ inputs.tag }}-${{ matrix.shard }}", path: "gen_*.jsonl", if-no-files-found: ignore}
