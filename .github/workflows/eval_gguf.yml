@@ -17,7 +17,7 @@ jobs:
       - name: llama.cpp + model
         env: {GH_TOKEN: "${{ github.token }}", GGUF_REPO: "${{ inputs.gguf_repo }}", PAT: "${{ inputs.pattern }}"}
         run: |
-          REL=$(curl -s -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/repos/ggml-org/llama.cpp/releases/latest | python3 -c "import json,sys;d=json.load(sys.stdin);print(next(a['browser_download_url'] for a in d['assets'] if 'bin-ubuntu-x64' in a['name'] and a['name'].endswith(('.zip','.tar.gz'))))")
+          REL=$(curl -s -H "Authorization: Bearer $GH_TOKEN" "https://api.github.com/repos/ggml-org/llama.cpp/releases?per_page=5" | python3 -c "import json,sys,re;rs=json.load(sys.stdin);print(next(a['browser_download_url'] for d in rs for a in d['assets'] if re.fullmatch(r'llama-b[0-9]+-bin-ubuntu-x64\.tar\.gz',a['name'])))")
           echo "$REL"; mkdir lcpp; curl -sL -o lcpp/pkg "$REL"
           case "$REL" in *.zip) unzip -q lcpp/pkg -d lcpp;; *) tar xzf lcpp/pkg -C lcpp;; esac
           S=$(find lcpp -name llama-server -type f | head -1); chmod +x "$S"; echo "SRV=$S" >> $GITHUB_ENV; echo "LD_LIBRARY_PATH=$(dirname $S)" >> $GITHUB_ENV
