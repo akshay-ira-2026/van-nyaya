@@ -5,7 +5,7 @@ on:
       run_name: {type: string, default: sft600}
       data: {type: string, default: data/sft_600.jsonl}
       resume_run_id: {type: string, default: ''}
-      maxlen: {type: string, default: '1024'}
+      maxlen: {type: string, default: '1536'}
 permissions: {contents: write, actions: write}
 jobs:
   train:
