@@ -1,6 +1,9 @@
 import os, time, json, torch, platform
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from peft import LoraConfig, get_peft_model
+def T(tok,msgs,**k):
+    o=tok.apply_chat_template(msgs,return_tensors='pt',**k)
+    return o['input_ids'] if not torch.is_tensor(o) else o
 torch.set_num_threads(os.cpu_count())
 M=os.environ.get('MODEL','1-800-LLMs/tiny-aya-global')
 R={'cpus':os.cpu_count()}
@@ -14,7 +17,7 @@ print('eval keys',list(ev[0].keys()),flush=True)
 model.eval()
 for r in rows[:2]:
     msgs=[m for m in r['messages'] if m['role']!='assistant']
-    ids=tok.apply_chat_template(msgs,add_generation_prompt=True,return_tensors='pt')
+    ids=T(tok,msgs,add_generation_prompt=True)
     t=time.time()
     with torch.no_grad(): out=model.generate(ids,max_new_tokens=64,do_sample=False)
     n=out.shape[1]-ids.shape[1]; dt=time.time()-t
@@ -31,7 +34,7 @@ model.print_trainable_parameters()
 opt=torch.optim.AdamW([p for p in model.parameters() if p.requires_grad],lr=1e-4)
 L=int(os.environ.get('MAXLEN','384'))
 for i,r in enumerate(rows[:5]):
-    ids=tok.apply_chat_template(r['messages'],return_tensors='pt')[:,:L]
+    ids=T(tok,r['messages'])[:,:L]
     t=time.time(); out=model(input_ids=ids,labels=ids); out.loss.backward(); opt.step(); opt.zero_grad()
     R.setdefault('train',[]).append({'len':ids.shape[1],'loss':round(out.loss.item(),3),'s':round(time.time()-t,1)})
     print(R['train'][-1],flush=True)
