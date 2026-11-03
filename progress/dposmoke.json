@@ -1,0 +1,21 @@
+{
+"next": 0,
+"opt_step": 0,
+"seen": 0,
+"skipped": 0,
+"log": [],
+"runs": 1,
+"sanity": {
+"full": -164.0263,
+"chunked": -164.0263,
+"use_chunk": true
+},
+"elapsed_s": 250,
+"N": 200,
+"mem": {
+"MemAvailable": 2043,
+"SwapTotal": 17407,
+"SwapFree": 10656,
+"maxrss": 14632
+}
+}
