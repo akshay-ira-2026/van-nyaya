@@ -19,8 +19,12 @@ jobs:
       - uses: actions/download-artifact@v4
         if: ${{ inputs.resume_run_id != '' }}
         with: {name: "adapter-${{ inputs.run_name }}", path: resume, run-id: "${{ inputs.resume_run_id }}", github-token: "${{ github.token }}"}
+      - name: swap
+        run: |
+          sudo fallocate -l 14G /mnt/swap_vn && sudo chmod 600 /mnt/swap_vn && sudo mkswap /mnt/swap_vn && sudo swapon /mnt/swap_vn || echo swap-failed
+          free -m; df -h /mnt
       - name: train
-        env: {DATA: "${{ inputs.data }}", RUN_NAME: "${{ inputs.run_name }}", MAXLEN: "${{ inputs.maxlen }}", BUDGET_S: "18600", GH_TOKEN: "${{ github.token }}", REPO: "${{ github.repository }}"}
+        env: {DATA: "${{ inputs.data }}", RUN_NAME: "${{ inputs.run_name }}", MAXLEN: "${{ inputs.maxlen }}", BUDGET_S: "7200", GH_TOKEN: "${{ github.token }}", REPO: "${{ github.repository }}"}
         run: python scripts/train_sft.py
       - uses: actions/upload-artifact@v4
         if: always()
