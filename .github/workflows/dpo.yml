@@ -1,0 +1,41 @@
+name: dpo
+on:
+  workflow_dispatch:
+    inputs:
+      run_name: {type: string, default: dpo200}
+      data: {type: string, default: data/dpo_200.jsonl}
+      sft_run_id: {type: string, default: ''}
+      sft_name: {type: string, default: sft600}
+      resume_run_id: {type: string, default: ''}
+      maxlen: {type: string, default: '1280'}
+permissions: {contents: write, actions: write}
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: pip install -q torch --index-url https://download.pytorch.org/whl/cpu && pip install -q -U transformers peft accelerate
+      - uses: actions/download-artifact@v4
+        if: ${{ inputs.sft_run_id != '' }}
+        with: {name: "adapter-${{ inputs.sft_name }}", path: sft_adapter, run-id: "${{ inputs.sft_run_id }}", github-token: "${{ github.token }}"}
+      - uses: actions/download-artifact@v4
+        if: ${{ inputs.resume_run_id != '' }}
+        with: {name: "adapter-${{ inputs.run_name }}", path: resume, run-id: "${{ inputs.resume_run_id }}", github-token: "${{ github.token }}"}
+      - name: train
+        env: {DATA: "${{ inputs.data }}", RUN_NAME: "${{ inputs.run_name }}", MAXLEN: "${{ inputs.maxlen }}", BUDGET_S: "18600", GH_TOKEN: "${{ github.token }}", REPO: "${{ github.repository }}"}
+        run: python scripts/train_dpo.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: "adapter-${{ inputs.run_name }}", path: out_adapter, retention-days: 60, if-no-files-found: ignore}
+      - name: chain
+        if: success()
+        env: {GH_TOKEN: "${{ github.token }}"}
+        run: |
+          if [ -f out_adapter/CONTINUE ]; then
+            curl -s -o /dev/null -w "chain %{http_code}\n" -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+              https://api.github.com/repos/${{ github.repository }}/actions/workflows/dpo.yml/dispatches \
+              -d '{"ref":"main","inputs":{"run_name":"${{ inputs.run_name }}","data":"${{ inputs.data }}","sft_run_id":"${{ inputs.sft_run_id }}","sft_name":"${{ inputs.sft_name }}","resume_run_id":"${{ github.run_id }}","maxlen":"${{ inputs.maxlen }}"}}'
+          fi

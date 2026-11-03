@@ -1,0 +1,74 @@
+name: export_eval
+on:
+  workflow_dispatch:
+    inputs:
+      tag: {type: string, default: sft}
+      sft_run_id: {type: string, default: ''}
+      sft_name: {type: string, default: sft600}
+      dpo_run_id: {type: string, default: ''}
+      dpo_name: {type: string, default: dpo200}
+permissions: {contents: read, actions: read}
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: deps
+        run: |
+          sudo mkdir -p /mnt/w && sudo chown $USER /mnt/w; df -h / /mnt
+          pip install -q torch --index-url https://download.pytorch.org/whl/cpu && pip install -q -U transformers peft accelerate sentencepiece protobuf safetensors numpy pyyaml tqdm
+      - uses: actions/download-artifact@v4
+        if: ${{ inputs.sft_run_id != '' }}
+        with: {name: "adapter-${{ inputs.sft_name }}", path: sft_adapter, run-id: "${{ inputs.sft_run_id }}", github-token: "${{ github.token }}"}
+      - uses: actions/download-artifact@v4
+        if: ${{ inputs.dpo_run_id != '' }}
+        with: {name: "adapter-${{ inputs.dpo_name }}", path: dpo_adapter, run-id: "${{ inputs.dpo_run_id }}", github-token: "${{ github.token }}"}
+      - name: merge
+        env: {OUT: /mnt/w/merged, HF_HOME: /mnt/w/hf}
+        run: python scripts/merge.py && rm -rf /mnt/w/hf && ls -la /mnt/w/merged
+      - name: convert + quantize
+        env: {GH_TOKEN: "${{ github.token }}"}
+        run: |
+          git clone -q --depth 1 https://github.com/ggml-org/llama.cpp /mnt/w/lc
+          PYTHONPATH=/mnt/w/lc/gguf-py python /mnt/w/lc/convert_hf_to_gguf.py /mnt/w/merged --outfile /mnt/w/f16.gguf --outtype f16
+          rm -rf /mnt/w/merged
+          REL=$(curl -s -H "Authorization: Bearer $GH_TOKEN" "https://api.github.com/repos/ggml-org/llama.cpp/releases?per_page=5" | python3 -c 'import json,sys,re;rs=json.load(sys.stdin);print(next(a["browser_download_url"] for d in rs for a in d["assets"] if re.fullmatch(r"llama-b[0-9]+-bin-ubuntu-x64\.tar\.gz",a["name"])))')
+          echo "$REL"; mkdir -p /mnt/w/bin; curl -sL -o /mnt/w/bin/pkg "$REL"; tar xzf /mnt/w/bin/pkg -C /mnt/w/bin
+          Q=$(find /mnt/w/bin -name llama-quantize -type f | head -1); chmod +x "$Q"
+          LD_LIBRARY_PATH=$(dirname $Q) "$Q" /mnt/w/f16.gguf model.gguf Q4_K_M
+          ls -la model.gguf
+      - uses: actions/upload-artifact@v4
+        with: {name: "gguf-${{ inputs.tag }}", path: model.gguf, retention-days: 30, compression-level: 0}
+  eval:
+    needs: export
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix: {shard: [0,1,2,3,4,5,6,7]}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: {name: "gguf-${{ inputs.tag }}", path: .}
+      - name: llama.cpp
+        env: {GH_TOKEN: "${{ github.token }}"}
+        run: |
+          REL=$(curl -s -H "Authorization: Bearer $GH_TOKEN" "https://api.github.com/repos/ggml-org/llama.cpp/releases?per_page=5" | python3 -c 'import json,sys,re;rs=json.load(sys.stdin);print(next(a["browser_download_url"] for d in rs for a in d["assets"] if re.fullmatch(r"llama-b[0-9]+-bin-ubuntu-x64\.tar\.gz",a["name"])))')
+          mkdir lcpp; curl -sL -o lcpp/pkg "$REL"; tar xzf lcpp/pkg -C lcpp
+          S=$(find lcpp -name llama-server -type f | head -1); chmod +x "$S"; echo "SRV=$S" >> $GITHUB_ENV; echo "LD_LIBRARY_PATH=$(dirname $S)" >> $GITHUB_ENV; ls -la model.gguf
+      - name: generate
+        timeout-minutes: 100
+        continue-on-error: true
+        env: {SHARDS: "8", SHARD: "${{ matrix.shard }}", TAG: "${{ inputs.tag }}"}
+        run: |
+          nohup "$SRV" -m model.gguf -c 4096 -t 4 --port 8080 --jinja > server.log 2>&1 &
+          for i in $(seq 1 60); do curl -s localhost:8080/health | grep -q ok && break; sleep 5; done
+          tail -5 server.log; python3 scripts/eval_gguf.py
+      - run: tail -30 server.log || true
+        if: always()
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: "gen-${{ inputs.tag }}-${{ matrix.shard }}", path: "gen_*.jsonl", if-no-files-found: ignore}
