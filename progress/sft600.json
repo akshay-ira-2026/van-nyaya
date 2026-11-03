@@ -1,21 +1,49 @@
 {
 "next": 0,
-"opt_step": 0,
-"seen": 0,
+"opt_step": 3,
+"seen": 12,
 "skipped": 0,
-"log": [],
+"log": [
+{
+"step": 1,
+"i": 4,
+"loss": 1.7918,
+"gn": 0.948,
+"lr": 2e-05,
+"s": 469.5,
+"rss": 14601
+},
+{
+"step": 2,
+"i": 8,
+"loss": 2.7805,
+"gn": 1.709,
+"lr": 4e-05,
+"s": 397.0,
+"rss": 15080
+},
+{
+"step": 3,
+"i": 12,
+"loss": 2.0644,
+"gn": 1.211,
+"lr": 6e-05,
+"s": 420.5,
+"rss": 15080
+}
+],
 "runs": 1,
 "sanity": {
 "full": 4.60381,
 "chunked": 4.60381,
 "use_chunk": true
 },
-"elapsed_s": 252,
+"elapsed_s": 1540,
 "N": 511,
 "mem": {
-"MemAvailable": 1725,
+"MemAvailable": 436,
 "SwapTotal": 17407,
-"SwapFree": 10951,
-"maxrss": 14601
+"SwapFree": 9702,
+"maxrss": 15080
 }
 }
