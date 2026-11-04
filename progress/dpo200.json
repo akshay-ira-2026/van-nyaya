@@ -1,21 +1,55 @@
 {
 "next": 0,
-"opt_step": 0,
-"seen": 0,
+"opt_step": 3,
+"seen": 12,
 "skipped": 0,
-"log": [],
+"log": [
+{
+"step": 1,
+"i": 4,
+"loss": 0.6931,
+"reward_acc": 0.0,
+"margin": 0.0,
+"gn": 4.897,
+"lr": 4e-06,
+"s": 973.0,
+"rss": 15077
+},
+{
+"step": 2,
+"i": 8,
+"loss": 0.6861,
+"reward_acc": 1.0,
+"margin": 0.142,
+"gn": 6.845,
+"lr": 8e-06,
+"s": 949.8,
+"rss": 15094
+},
+{
+"step": 3,
+"i": 12,
+"loss": 0.6772,
+"reward_acc": 1.0,
+"margin": 0.323,
+"gn": 4.377,
+"lr": 1.2e-05,
+"s": 966.2,
+"rss": 15248
+}
+],
 "runs": 1,
 "sanity": {
 "full": -0.4356,
 "chunked": -0.4356,
 "use_chunk": true
 },
-"elapsed_s": 166,
+"elapsed_s": 3056,
 "N": 200,
 "mem": {
-"MemAvailable": 1892,
+"MemAvailable": 893,
 "SwapTotal": 17407,
-"SwapFree": 10644,
-"maxrss": 14654
+"SwapFree": 9611,
+"maxrss": 15248
 }
 }
