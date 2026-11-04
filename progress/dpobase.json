@@ -1,7 +1,7 @@
 {
 "next": 0,
-"opt_step": 9,
-"seen": 36,
+"opt_step": 12,
+"seen": 48,
 "skipped": 0,
 "log": [
 {
@@ -102,6 +102,39 @@
 "lr": 1.98e-05,
 "s": 543.4,
 "rss": 15298
+},
+{
+"step": 10,
+"i": 40,
+"loss": 0.2632,
+"reward_acc": 1.0,
+"margin": 12.839,
+"gn": 4.047,
+"lr": 1.965e-05,
+"s": 516.6,
+"rss": 15298
+},
+{
+"step": 11,
+"i": 44,
+"loss": 0.248,
+"reward_acc": 1.0,
+"margin": 12.876,
+"gn": 3.491,
+"lr": 1.946e-05,
+"s": 431.1,
+"rss": 15298
+},
+{
+"step": 12,
+"i": 48,
+"loss": 0.1482,
+"reward_acc": 1.0,
+"margin": 18.566,
+"gn": 2.215,
+"lr": 1.922e-05,
+"s": 489.4,
+"rss": 15356
 }
 ],
 "runs": 1,
@@ -110,12 +143,12 @@
 "chunked": -164.0294,
 "use_chunk": true
 },
-"elapsed_s": 5149,
+"elapsed_s": 6586,
 "N": 200,
 "mem": {
-"MemAvailable": 156,
+"MemAvailable": 102,
 "SwapTotal": 17407,
-"SwapFree": 8710,
-"maxrss": 15298
+"SwapFree": 8705,
+"maxrss": 15356
 }
 }
