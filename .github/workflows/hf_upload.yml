@@ -1,0 +1,45 @@
+name: hf_upload
+on:
+  workflow_dispatch:
+    inputs:
+      run_id: {type: string}
+      artifact: {type: string}
+      repo_id: {type: string}
+      repo_type: {type: string, default: model}
+      path_in_repo: {type: string, default: ''}
+      ignore: {type: string, default: 'opt.pt,CONTINUE,*.pt,state.json'}
+      message: {type: string, default: 'upload'}
+permissions: {contents: read, actions: read}
+jobs:
+  up:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact }}
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ github.token }}
+          path: art
+      - run: pip install -q huggingface_hub hf_transfer
+      - env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_HUB_ENABLE_HF_TRANSFER: '1'
+          REPO: ${{ inputs.repo_id }}
+          RT: ${{ inputs.repo_type }}
+          PIR: ${{ inputs.path_in_repo }}
+          IGN: ${{ inputs.ignore }}
+          MSG: ${{ inputs.message }}
+        run: |
+          find art -maxdepth 3 -type f -exec ls -la {} \;
+          python - <<'EOF'
+          import os,glob
+          from huggingface_hub import HfApi
+          api=HfApi(token=os.environ['HF_TOKEN'])
+          cfg=glob.glob('art/**/adapter_config.json',recursive=True)
+          d=os.path.dirname(cfg[0]) if cfg else 'art'
+          ign=[p for p in os.environ['IGN'].split(',') if p]
+          api.create_repo(os.environ['REPO'],repo_type=os.environ['RT'],exist_ok=True)
+          api.upload_folder(repo_id=os.environ['REPO'],repo_type=os.environ['RT'],folder_path=d,path_in_repo=os.environ['PIR'] or None,ignore_patterns=ign,commit_message=os.environ['MSG'])
+          print('uploaded from',d,os.listdir(d))
+          print([f for f in api.list_repo_files(os.environ['REPO'],repo_type=os.environ['RT'])])
+          EOF
