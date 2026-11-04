@@ -51,6 +51,9 @@ A legal assistant that is wrong with confidence is worse than none. For a forest
 
 ## 5. Artifacts
 
+- Live demo (runs in your browser, plus base vs Van Nyaya side by side on held-out questions): https://huggingface.co/spaces/AkshayWagh/van-nyaya-demo
+- GGUF (merged final SFT, split into browser-size shards): https://huggingface.co/AkshayWagh/van-nyaya-tiny-aya-gguf
+
 - Model collection: https://huggingface.co/collections/AkshayWagh/van-nyaya-models-6aeb1675438b8efca8ba323e
 - Dataset collection: https://huggingface.co/collections/AkshayWagh/van-nyaya-datasets-6aeb16b634d9685329e7ce83
 - SFT LoRA (headline): https://huggingface.co/AkshayWagh/van-nyaya-tiny-aya-sft-lora
