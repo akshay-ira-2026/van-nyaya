@@ -1,4 +1,13 @@
 import os, time, json, math, base64, urllib.request, resource, gc, torch
+
+import re as _re
+def _safe_env():
+    r=os.environ.get('RUN_NAME')
+    if r is not None and not _re.fullmatch(r'[A-Za-z0-9_.-]{1,64}',r) or (r and '..' in r): raise SystemExit('bad RUN_NAME')
+    b=float(os.environ.get('BUDGET_S','7200'))
+    if not (0<b<=43200): raise SystemExit('BUDGET_S must be 0-43200 s')
+_safe_env()
+def _repo_ok(repo): return bool(_re.fullmatch(r'akshay-ira-2026/[A-Za-z0-9_.-]+',repo))
 import torch.nn.functional as F
 from torch.utils.checkpoint import checkpoint
 from transformers import AutoTokenizer, AutoModelForCausalLM
@@ -72,7 +81,9 @@ def lr_at(s):
     p=min(1,(s-10)/max(1,TOT-10)); return LR*(0.1+0.9*0.5*(1+math.cos(math.pi*p)))
 def push():
     try:
-        tokn=os.environ['GH_TOKEN']; repo=os.environ['REPO']; path=f'progress/{RUN}.json'
+        tokn=os.environ['GH_TOKEN']; repo=os.environ['REPO']
+        if not _repo_ok(repo): raise ValueError('REPO not allowed: '+repo)
+        path=f'progress/{RUN}.json'
         url=f'https://api.github.com/repos/{repo}/contents/{path}'; H={'Authorization':'Bearer '+tokn,'Accept':'application/vnd.github+json'}
         sha=None
         try: sha=json.load(urllib.request.urlopen(urllib.request.Request(url+'?ref=progress',headers=H)))['sha']
