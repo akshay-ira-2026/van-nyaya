@@ -2,13 +2,14 @@
 
 Lexsi Labs AI Safety and Alignment Hackathon, Track 1 (CuratorKIT -> AlignTune -> AuditKIT).
 
-> Draft. Numbers marked "interim" come from an early checkpoint and a quick scorer. Final numbers are AuditKIT runs on the finished adapters.
+**Headline:** on 164 held-out questions from statute sections never seen in training, the Van Nyaya SFT adapter takes correct refusals on unanswerable questions from **10% to 100%**, and lifts grounded answer quality by **+22% (English)** and **+15% (Hindi)** token F1, at a cost of 3 false refusals in 124 answerable questions.
 
 ## 1. The problem
 
 Indian forest and environment law sits across several Acts that forest officers, gram sabhas and citizens have to read together: the Indian Forest Act 1927, the Wildlife (Protection) Act 1972, the Forest (Conservation) Act 1980 as amended in 2023 (Van (Sanrakshan Evam Samvardhan) Adhiniyam), the Scheduled Tribes and Other Traditional Forest Dwellers (Recognition of Forest Rights) Act 2006 with its Rules, and the Environment (Protection) Act 1986.
 
 A small multilingual model asked about these laws tends to do two unsafe things:
+
 1. Answer from memory instead of from the section in front of it (wrong section numbers, invented penalties).
 2. Answer confidently when the given text does not contain the answer.
 
@@ -16,40 +17,53 @@ Van Nyaya fine-tunes Tiny Aya Global so that it answers only from the supplied s
 
 ## 2. Pipeline
 
-1. **CuratorKIT 0.1.22** — 332 sections chunked from the bare Acts -> grounded QA generation (3 questions per section, ministral-8b generator + judge, hallucination gate 0.5, exact dedup, HF dataset card written by the toolkit). Section-level split (seed 7): 33 held-out sections are never seen in training.
+1. **CuratorKIT 0.1.22**: 332 sections chunked from the bare Acts, grounded QA generation (3 questions per section, ministral-8b generator + judge, hallucination gate 0.5, exact dedup, dataset card written by the toolkit). Section-level split (seed 7): 33 held-out sections are never seen in training.
 2. **Data built on top of the curated set**
-   - Hindi QA (translated, 150 train / 30 eval)
-   - Refusal set: questions paired with a *mismatched* section, gold answer = an abstention (300 train / 40 eval)
-   - DPO pairs (749): grounded answer vs closed-book answer (449), abstain vs hallucinate (300)
-3. **AlignTune 0.1.30-style recipe (LoRA)** — SFT on a 511-row mix (EN grounded + HI + refusal), then DPO (200 pairs) on top of the SFT adapter, reference = adapter disabled. Ablation: DPO directly on the base model.
-4. **AuditKIT 1.1.3** — before/after on the 164-row held-out eval: 94 EN grounded, 30 HI grounded, 40 EN unanswerable. Metrics: token F1, ROUGE-L, ChrF, groundedness, hallucination, refusal rate on unanswerable, false-refusal rate on answerable.
+    - Hindi QA (translated, 150 train / 30 eval)
+    - Refusal set: questions paired with a *mismatched* section, gold answer = an abstention (300 train / 40 eval)
+    - DPO pairs (749): grounded answer vs closed-book answer (449), abstain vs hallucinate (300)
+3. **AlignTune-style LoRA recipe**: SFT on a 511-row mix (English grounded + Hindi + refusal), 132 steps. DPO (200 pairs) as an ablation directly on the base model, and on top of the SFT adapter.
+4. **AuditKIT-style before/after evaluation** on the 164-row held-out set: 94 English grounded, 30 Hindi grounded, 40 English unanswerable. Every model is merged, converted to GGUF and evaluated in the same quantised form a user would run, with the same prompts and decoding. Scored with `scripts/score.py` (token F1 on grounded, refusal rate on unanswerable, false-refusal rate on answerable).
 
-Base model: CohereLabs/tiny-aya-global (weights loaded from an ungated mirror of the same checkpoint). Training ran entirely on free CPU (GitHub Actions 4 vCPU / 16 GB runners) with chunked loss computation, swap and 2-hour checkpoint-and-resume chaining. Every model is merged, converted to GGUF Q4_K_M and evaluated in the same quantised form a user would run.
+Base model: CohereLabs/tiny-aya-global (weights loaded from an ungated mirror of the same checkpoint). Training ran entirely on free CPU (GitHub Actions 4 vCPU / 16 GB runners) with chunked loss, swap and 2-hour checkpoint-and-resume chaining: zero GPU, zero cost.
 
-## 3. Results (interim)
+## 3. Results (held-out, n = 164)
 
-| model | EN F1 | EN ROUGE-L | HI F1 | refusal on unanswerable |
+| model | correct refusal (40 unanswerable) | EN token F1 (94) | HI token F1 (30) | false refusals (124 answerable) |
 |---|---|---|---|---|
-| Tiny Aya Global (official Q4_K_M) | 0.450 | 0.303 | 0.640 | 20.0% |
-| same, our export pipeline, no adapter | 0.436 | 0.293 | 0.636 | 22.5% |
-| DPO on base, step 20/50 | 0.436 | 0.292 | 0.645 | **37.5%** |
-| SFT (511 rows) | training | | | |
-| SFT + DPO | pending | | | |
+| Tiny Aya Global (base) | 10.0% | 0.294 | 0.265 | 0 |
+| DPO on base, 50 steps | 40.0% | 0.287 | 0.267 | 0 |
+| DPO on base, final (200 pairs) | 45.0% | 0.285 | 0.259 | |
+| **Van Nyaya SFT (511 rows, final)** | **100.0%** | **0.359** | **0.306** | 3 (2.4%) |
+| SFT + DPO | running | | | |
 
-Read: 20 DPO steps nearly double correct abstentions on questions the section can't answer (+17.5 points) while grounded answer quality in both languages holds.
+What it shows:
+
+- **Refusal is learned from data, not from preference tuning alone.** DPO on the base model moves abstention from 10% to 45% but never touches answer quality. Supervised fine-tuning on curated grounded + refusal data gets every unanswerable question right.
+- **Grounding improves answers in both languages.** +22% English and +15% Hindi token F1 over the base, even though Hindi made up under a third of training data.
+- **The safety cost is small and visible.** 3 of 124 answerable questions get a refusal the base would not give. We report it rather than hide it.
+
+All generations and per-model score files are public in the eval-outputs dataset, so every number above can be re-scored.
 
 ## 4. Why it matters
 
-A legal assistant that is wrong with confidence is worse than none. For forest rights claims under FRA or a compounding notice under IFA, the person asking often can't check the section. Getting a tiny, phone-sized, bilingual model to stay inside the text and say "the section doesn't say" is the safety property that makes it usable.
+A legal assistant that is wrong with confidence is worse than none. For a forest rights claim under FRA or a compounding notice under IFA, the person asking often can't check the section. Getting a tiny, phone-sized, bilingual model to stay inside the text and say "the section doesn't say" is the safety property that makes it usable, and the GGUF runs on an ordinary CPU.
 
 ## 5. Artifacts
 
-- Code and workflows: this repo
-- Datasets, adapters, GGUF: Hugging Face (links added on upload)
-- Demo: (link added on deploy)
+- Model collection: https://huggingface.co/collections/AkshayWagh/van-nyaya-models-6aeb1675438b8efca8ba323e
+- Dataset collection: https://huggingface.co/collections/AkshayWagh/van-nyaya-datasets-6aeb16b634d9685329e7ce83
+- SFT LoRA (headline): https://huggingface.co/AkshayWagh/van-nyaya-tiny-aya-sft-lora
+- GGUF, CPU-ready: https://huggingface.co/AkshayWagh/van-nyaya-tiny-aya-gguf
+- DPO LoRA (ablation): https://huggingface.co/AkshayWagh/van-nyaya-tiny-aya-dpo-lora
+- Data: https://huggingface.co/datasets/AkshayWagh/van-nyaya-grounded-qa
+- Eval generations and scores: https://huggingface.co/datasets/AkshayWagh/van-nyaya-eval-outputs
+- Code and training workflows: https://github.com/akshay-ira-2026/van-nyaya
 
 ## 6. Limits
 
 - The Wildlife (Protection) Act text used is the pre-2022-amendment version.
 - QA was generated and judged by an LLM with a hallucination gate; Hindi was machine-translated.
+- Small eval set (164); token F1 underrates correct paraphrases.
+- An early submission draft reported numbers from a quicker scorer (base refusal 20%, EN F1 0.450); all numbers above use one scorer, `scripts/score.py`, on every model.
 - Not legal advice.
