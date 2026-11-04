@@ -1,5 +1,5 @@
 {
-"next": 478,
+"next": 511,
 "opt_step": 132,
 "seen": 511,
 "skipped": 0,
@@ -1199,10 +1199,10 @@
 "chunked": 0.01381,
 "use_chunk": true
 },
-"elapsed_s": 3995,
+"elapsed_s": 3997,
 "N": 511,
 "mem": {
-"MemAvailable": 717,
+"MemAvailable": 710,
 "SwapTotal": 17407,
 "SwapFree": 10568,
 "maxrss": 14875
