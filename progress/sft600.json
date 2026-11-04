@@ -149,18 +149,18 @@
 "rss": 15080
 }
 ],
-"runs": 1,
+"runs": 2,
 "sanity": {
-"full": 4.60381,
-"chunked": 4.60381,
+"full": 0.99467,
+"chunked": 0.99467,
 "use_chunk": true
 },
-"elapsed_s": 7283,
+"elapsed_s": 252,
 "N": 511,
 "mem": {
-"MemAvailable": 548,
+"MemAvailable": 1515,
 "SwapTotal": 17407,
-"SwapFree": 8704,
-"maxrss": 15080
+"SwapFree": 11013,
+"maxrss": 14642
 }
 }
