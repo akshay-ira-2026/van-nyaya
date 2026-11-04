@@ -77,3 +77,14 @@ A legal assistant that is wrong with confidence is worse than none. For a forest
 - Token F1 measures lexical overlap, not legal correctness.
 - No independent expert validation or production-safety claim.
 - Not legal advice.
+
+## Ablation: DPO on top of SFT (added 5 Nov 2026)
+
+We continued the final SFT adapter (sft600) with the 200 DPO preference pairs, merged, converted to GGUF and scored it on the same 164 held-out questions with `scripts/score.py`.
+
+| Model | Refusal acc. (EN unanswerable, n=40) | EN grounded F1 (n=94) | HI grounded F1 (n=30) |
+|---|---|---|---|
+| SFT (submitted) | 1.000 | 0.359 | 0.306 |
+| SFT + DPO200 | 1.000 | 0.355 | 0.300 |
+
+DPO on top of SFT did not beat SFT alone: refusals stayed at 100%, token F1 dipped slightly in both languages, and two more answerable questions (idx 79, 107) drew refusal-style answers. The submitted model stays the SFT adapter. Generations and scores: `results/ablation_sft_dpo/`.
