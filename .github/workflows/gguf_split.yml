@@ -1,0 +1,36 @@
+name: gguf_split
+on:
+  workflow_dispatch:
+    inputs:
+      repo_id: {default: "AkshayWagh/van-nyaya-tiny-aya-gguf"}
+      src: {default: "model.gguf"}
+      quant: {default: ""}
+      out_dir: {default: "split"}
+      max_size: {default: "400M"}
+jobs:
+  split:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: free disk
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc || true; df -h /
+      - name: tools
+        run: |
+          pip install -q huggingface_hub
+          U=$(curl -s -H "Authorization: Bearer ${{ github.token }}" "https://api.github.com/repos/ggml-org/llama.cpp/releases?per_page=5" | python3 -c 'import json,sys,re;rs=json.load(sys.stdin);print(next(a["browser_download_url"] for d in rs for a in d["assets"] if re.fullmatch(r"llama-b[0-9]+-bin-ubuntu-x64\.tar\.gz",a["name"])))')
+          echo $U; mkdir lc; curl -sL $U | tar xz -C lc; find lc -name 'llama-gguf-split' -o -name 'llama-quantize'
+      - name: split
+        env: {HF_TOKEN: "${{ secrets.HF_TOKEN }}"}
+        run: |
+          set -e
+          B=$(dirname $(find lc -name llama-gguf-split | head -1)); export LD_LIBRARY_PATH=$B
+          python3 -c "from huggingface_hub import hf_hub_download;import shutil;shutil.copy(hf_hub_download('${{ inputs.repo_id }}','${{ inputs.src }}'),'m.gguf')"
+          ls -la m.gguf
+          if [ -n "${{ inputs.quant }}" ]; then $B/llama-quantize m.gguf q.gguf ${{ inputs.quant }}; mv q.gguf m.gguf; ls -la m.gguf; fi
+          mkdir out; $B/llama-gguf-split --split --split-max-size ${{ inputs.max_size }} m.gguf out/model
+          ls -la out
+          python3 -c "
+          import os
+          from huggingface_hub import HfApi
+          HfApi(token=os.environ['HF_TOKEN']).upload_folder(repo_id='${{ inputs.repo_id }}',folder_path='out',path_in_repo='${{ inputs.out_dir }}',commit_message='Browser-size GGUF shards (${{ inputs.quant }})')
+          print('uploaded')"
