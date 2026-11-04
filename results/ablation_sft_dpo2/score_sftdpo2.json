@@ -1,0 +1,22 @@
+{
+  "en_grounded": {
+    "n": 94,
+    "refusal_accuracy": null,
+    "mean_f1": 0.3461678814184138
+  },
+  "en_unanswerable": {
+    "n": 40,
+    "refusal_accuracy": 1.0,
+    "mean_f1": null
+  },
+  "hi_grounded": {
+    "n": 30,
+    "refusal_accuracy": null,
+    "mean_f1": 0.2998378519411614
+  },
+  "overall": {
+    "n": 164,
+    "refusal_accuracy": 1.0,
+    "mean_f1": 0.33495900331907824
+  }
+}

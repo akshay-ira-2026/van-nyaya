@@ -86,5 +86,6 @@ We continued the final SFT adapter (sft600) with the 200 DPO preference pairs, m
 |---|---|---|---|
 | SFT (submitted) | 1.000 | 0.359 | 0.306 |
 | SFT + DPO200 | 1.000 | 0.355 | 0.300 |
+| SFT + DPO200 (run 2, longer DPO) | 1.000 | 0.346 | 0.300 |
 
-DPO on top of SFT did not beat SFT alone: refusals stayed at 100%, token F1 dipped slightly in both languages, and two more answerable questions (idx 79, 107) drew refusal-style answers. The submitted model stays the SFT adapter. Generations and scores: `results/ablation_sft_dpo/`.
+DPO on top of SFT did not beat SFT alone: refusals stayed at 100%, token F1 dipped slightly in both languages, and two more answerable questions (idx 79, 107) drew refusal-style answers. A second, longer DPO continuation (run 2) dipped further on English F1 (0.346). The submitted model stays the SFT adapter. Generations and scores: `results/ablation_sft_dpo/` and `results/ablation_sft_dpo2/`.
